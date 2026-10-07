@@ -135,11 +135,12 @@ Currently demonstrated:
 - Local Supabase CLI and Docker setup
 - Local Auth, database, and Realtime services
 - Project-specific ports that allow coexistence with another local Supabase project
-- PostgreSQL migrations for profiles, support_cases, and case_updates
+- PostgreSQL migrations for `profiles`, `support_cases`, and `case_updates`
+- RLS policies for customer ownership and tenant-scoped support-agent access
+- Explicit Data API grants for authenticated users
+- Repeatable positive and negative authorization tests using temporary local Auth users
 
 Planned in the next branches:
 
-- RLS policies and authorization tests
-- Auth test users and authorization tests
 - Minimal JavaScript Realtime subscriber
-- The documented RLS/Reatime troubleshooting reproduction
+- Reproduction and documentation of the RLS/Realtime troubleshooting scenario
