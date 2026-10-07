@@ -1,0 +1,25 @@
+{
+  "name": "supabase-support-case-dashboard",
+  "version": "1.0.0",
+  "description": "A small, local-first Supabase learning project that demonstrates PostgreSQL, Supabase Auth/JWT, Row Level Security (RLS), and Realtime through a multi-tenant support-case dashboard.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:authorization": "node scripts/test-authorization.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cdwilliams23/supabase-support-case-dashboard.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/cdwilliams23/supabase-support-case-dashboard/issues"
+  },
+  "homepage": "https://github.com/cdwilliams23/supabase-support-case-dashboard#readme",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.2"
+  }
+}
