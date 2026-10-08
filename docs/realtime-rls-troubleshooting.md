@@ -69,11 +69,11 @@ The normal Data API path could read the case, confirming Customer A’s JWT iden
 
 The initial update occurred immediately after the channel reported `SUBSCRIBED`. Repeating the same scenario produced inconsistent results, which identified a local subscription-readiness race.
 
-The final demo waits briefly after subscription before updating:
+The final demo waits three seconds after subscription before updating:
 
 ```js
 await waitForSubscription(channel)
-await wait(1000)
+await wait(3000)
 ```
 
 The final subscriber also avoids the server-side UUID filter observed to suppress delivery in this local setup. Instead, it checks the case ID in the callback:
