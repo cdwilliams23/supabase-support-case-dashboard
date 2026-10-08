@@ -1,0 +1,121 @@
+# Realtime Troubleshooting Reproduction
+
+## Purpose
+
+This local-only exercise demonstrates that a successful API update and a persisted PostgreSQL row do not guarantee immediate delivery to a Supabase Realtime subscriber.
+
+It investigates the publication, logical replication, subscription state, JWT identity, RLS, and client subscription configuration.
+
+## Run the demo
+
+Start the local stack, load local credentials into Git Bash, and run:
+
+```bash
+eval "$(npx supabase status -o env | sed -E 's/^([A-Z0-9_]+)=/export \1=/')"
+npm run demo:realtime
+```
+
+The demo creates temporary Customer and Agent users in one tenant, subscribes as the customer, updates the case as the agent, verifies the database row, asserts delivery, and removes all temporary data.
+
+## Initial symptom
+
+The initial run showed:
+
+1. Customer created a case through the API.
+2. Agent updated the case status through the API.
+3. An independent service-role read confirmed the row existed with `status = 'in_progress'`.
+4. The Realtime channel reported `SUBSCRIBED`.
+5. No status-change event arrived before the timeout.
+
+The temporary data cleanup still completed.
+
+## Investigation
+
+### Publication
+
+```bash
+docker exec supabase_db_supabase-support-case-dashboard psql -U postgres -d postgres -c "select pubname, schemaname, tablename from pg_publication_tables where pubname = 'supabase_realtime';"
+```
+
+Confirmed:
+
+```text
+supabase_realtime | public | support_cases
+```
+
+### WAL and logical replication
+
+```bash
+docker exec supabase_db_supabase-support-case-dashboard psql -U postgres -d postgres -c "show wal_level; select slot_name, plugin, active from pg_replication_slots; select application_name, state from pg_stat_replication;"
+```
+
+Confirmed:
+
+- `wal_level` was `logical`.
+- The Supabase Realtime replication slot was active.
+- The Realtime replication connection was `streaming`.
+
+### JWT and RLS path
+
+The subscriber signs Customer A in through Supabase Auth, receives a JWT session, and calls:
+
+```js
+await client.realtime.setAuth(session.access_token)
+```
+
+The normal Data API path could read the case, confirming Customer A’s JWT identity and standard RLS access.
+
+### Subscription configuration
+
+The initial update occurred immediately after the channel reported `SUBSCRIBED`. Repeating the same scenario produced inconsistent results, which identified a local subscription-readiness race.
+
+The final demo waits briefly after subscription before updating:
+
+```js
+await waitForSubscription(channel)
+await wait(1000)
+```
+
+The final subscriber also avoids the server-side UUID filter observed to suppress delivery in this local setup. Instead, it checks the case ID in the callback:
+
+```js
+if (payload.new.id !== caseId) return
+```
+
+## Current customer read policy
+
+The final migration simplifies customer case visibility to direct row ownership:
+
+```sql
+create policy "support cases: customer can read own cases"
+on public.support_cases
+for select
+to authenticated
+using (customer_id = auth.uid());
+```
+
+The insert policy still requires customer role and tenant membership when a case is created, and a trigger prevents later changes to `customer_id` or `tenant_id`.
+
+## Verified result
+
+The final demo produces:
+
+```text
+Realtime subscription status: SUBSCRIBED
+✓ Agent updated the case in the same tenant
+✓ Updated case row exists in PostgreSQL with status in_progress
+Received Realtime event: UPDATE in_progress
+✓ Customer received the permitted Realtime status-change event
+```
+
+## WAL and logical replication, at a high level
+
+PostgreSQL records changes in its write-ahead log (WAL). Logical replication converts selected changes into a stream that Supabase Realtime can consume. The `supabase_realtime` publication identifies the tables available to that stream.
+
+For RLS-protected tables, Realtime must still evaluate whether the subscribing user may read a changed row before delivering it.
+
+## Scope
+
+This is a local learning reproduction. It demonstrates a practical Realtime investigation and a working status subscriber.
+
+It does not claim that the original timeout was conclusively caused by RLS. A deterministic fault-injection replay that deliberately denies `SELECT` access and then restores the policy remains outside this time-boxed MVP.
