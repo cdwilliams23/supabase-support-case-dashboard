@@ -109,6 +109,8 @@ This project will document and reproduce the following investigation:
 
 This demonstrates why a successful database write does not by itself prove that a subscriber is authorized to receive the row change.
 
+The exact local reproduction, investigation commands, observed failure, and correction are documented in [docs/realtime-rls-troubleshooting.md](docs/realtime-rls-troubleshooting.md).
+
 ## Local development
 
 This project runs locally and is not linked to a hosted Supabase project.
@@ -139,8 +141,8 @@ Currently demonstrated:
 - RLS policies for customer ownership and tenant-scoped support-agent access
 - Explicit Data API grants for authenticated users
 - Repeatable positive and negative authorization tests using temporary local Auth users
+- `support_cases` enabled in the `supabase_realtime` publication
+- A minimal JavaScript Realtime status subscriber
+- A documented Realtime troubleshooting investigation covering publication, WAL, JWT, RLS, and subscription readiness
 
-Planned in the next branches:
-
-- Minimal JavaScript Realtime subscriber
-- Reproduction and documentation of the RLS/Realtime troubleshooting scenario
+Outside this MVP: a browser UI, hosted deployment, production observability, retries, load testing, and a Broadcast-based Realtime implementation.
