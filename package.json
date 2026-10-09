@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "test:authorization": "node scripts/test-authorization.mjs",
-    "demo:realtime": "node scripts/realtime-case-status.mjs"
+    "demo:realtime": "node scripts/realtime-case-status.mjs",
+    "dashboard:realtime": "node scripts/dashboard-realtime-client.mjs"
   },
   "repository": {
     "type": "git",
