@@ -82,6 +82,38 @@ The final subscriber also avoids the server-side UUID filter observed to suppres
 if (payload.new.id !== caseId) return
 ```
 
+## State reconciliation after subscription
+
+The local investigation observed a timing gap: a channel can report `SUBSCRIBED` before the controlled write is reliably delivered to this local client.
+
+The controlled Realtime demo preserves its explicit three-second wait before its test update:
+
+```js
+await waitForSubscription(channel)
+await wait(3000)
+```
+
+That delay is a local-demo mitigation only. It is not a production dashboard-loading strategy.
+
+The dashboard client uses the resilience pattern instead:
+
+1. Authenticate with the signed-in user's JWT.
+2. Establish the Realtime channel and wait for `SUBSCRIBED`.
+3. Immediately query `support_cases` and `case_updates` through the normal RLS-scoped Data API.
+4. Render that current PostgreSQL state.
+5. Re-query and render again when later permitted Realtime changes arrive.
+
+This means the dashboard does not depend on receiving a single initial Realtime event in order to display the current authorized state.
+
+## Manual verification
+
+1. Sign in with an authorized customer or support-agent account.
+2. Start the dashboard client and confirm `SUBSCRIBED`.
+3. Verify its initial output lists only the cases and permitted updates returned by the reconciliation query.
+4. Create or update a permitted case or case update from another authorized client.
+5. Verify the dashboard logs a Realtime-driven refresh and renders the new PostgreSQL state.
+6. Sign in as a user from a different tenant and verify they cannot read the first user's cases or updates. The existing `npm run test:authorization` script automates the authorization checks.
+
 ## Current customer read policy
 
 The final migration simplifies customer case visibility to direct row ownership:

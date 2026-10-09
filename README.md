@@ -18,6 +18,7 @@ The MVP will include:
 - A minimal JavaScript subscriber
 - Positive and negative authorization tests
 - A reproducible Realtime/RLS troubleshooting scenario
+- State reconciliation after a successful Realtime subscription
 
 Out of scope: payments, a polished frontend, microservices, external integrations, hosted deployment, and production-scale infrastructure.
 
@@ -33,7 +34,7 @@ JavaScript client
   └─ Realtime subscription ← supabase_realtime publication ← PostgreSQL WAL
 ```
 
-The database is the source of truth. The client uses Supabase Auth to establish identity, then sends its JWT with database and Realtime requests. PostgreSQL RLS determines which rows that identity may read or change.
+The database is the source of truth. The client uses Supabase Auth to establish identity, then sends its JWT with database and Realtime requests. PostgreSQL RLS determines which rows that identity may read or change. The terminal dashboard client follows a production-style startup sequence: it waits for `SUBSCRIBED`, then queries the current RLS-scoped cases and permitted updates from PostgreSQL. Later permitted Realtime events trigger a safe refresh from that same source of truth.
 
 ## Data model and access model
 
@@ -70,7 +71,7 @@ The key claim for row ownership is `sub`, the authenticated user ID exposed in S
 
 The JWT also contains a database/API role claim such as `authenticated`. That is separate from this application’s customer/support-agent role, which is stored in `profiles` and checked by RLS policies.
 
-The browser client uses only the anon/publishable key and the signed-in user’s JWT. Service-role credentials bypass RLS and are intentionally outside this MVP’s client flow.
+The dashboard client uses only the anon/publishable key and the signed-in user’s JWT. Service-role credentials bypass RLS and are intentionally outside this MVP’s client flow.
 
 ## RLS policies
 
@@ -87,9 +88,9 @@ Tests will include both expected successes and expected denials so that tenant i
 
 ## Realtime, publications, and subscriptions
 
-The client will use a Supabase Realtime Postgres Changes channel to subscribe to updates on `support_cases`, filtered to the relevant tenant or case where appropriate.
+The dashboard client uses Supabase Realtime Postgres Changes channels to subscribe to relevant changes on `support_cases` and `case_updates`.
 
-For database changes to be streamed, `support_cases` must be included in the `supabase_realtime` publication. A browser subscription must also be authenticated with a JWT whose RLS policies allow the subscribed user to select the changed row.
+For database changes to be streamed, both tables must be included in the `supabase_realtime` publication. The dashboard subscription is authenticated with a JWT whose RLS policies allow the signed-in user to select the affected row.
 
 At a high level, PostgreSQL writes changes to the write-ahead log (WAL). Logical replication exposes relevant row changes from that log to Supabase Realtime, which evaluates access and delivers permitted events to connected subscribers.
 
@@ -119,6 +120,14 @@ This project runs locally and is not linked to a hosted Supabase project.
 npx supabase start
 npx supabase status
 ```
+To run the authenticated terminal dashboard, load local credentials and provide an existing local user's email and password:
+
+```bash
+eval "$(npx supabase status -o env | sed -E 's/^([A-Z0-9_]+)=/export \1=/')"
+export DASHBOARD_EMAIL="your-local-user@example.test"
+export DASHBOARD_PASSWORD="your-local-password"
+npm run dashboard:realtime
+```
 
 This repository uses a separate local port range so it can run alongside other Supabase projects:
 
@@ -141,8 +150,10 @@ Currently demonstrated:
 - RLS policies for customer ownership and tenant-scoped support-agent access
 - Explicit Data API grants for authenticated users
 - Repeatable positive and negative authorization tests using temporary local Auth users
-- `support_cases` enabled in the `supabase_realtime` publication
+- `support_cases` and `case_updates` enabled in the `supabase_realtime` publication
 - A minimal JavaScript Realtime status subscriber
 - A documented Realtime troubleshooting investigation covering publication, WAL, JWT, RLS, and subscription readiness
+- Realtime updates for both `support_cases` and `case_updates`
+- State reconciliation after subscription using an authenticated, RLS-scoped query
 
 Outside this MVP: a browser UI, hosted deployment, production observability, retries, load testing, and a Broadcast-based Realtime implementation.
