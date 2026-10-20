@@ -129,6 +129,16 @@ export DASHBOARD_PASSWORD="your-local-password"
 npm run dashboard:realtime
 ```
 
+### Local DevTools RLS lab
+
+For repeatable local tenant-isolation fixtures for browser DevTools or Data API investigations, see [Local DevTools RLS Lab](docs/local-devtools-rls-lab.md).
+
+```bash
+npm run lab:devtools:setup
+# Use the temporary credentials printed by setup for the current lab session.
+npm run lab:devtools:cleanup
+```
+
 This repository uses a separate local port range so it can run alongside other Supabase projects:
 
 - API: `55321`
@@ -150,6 +160,7 @@ Currently demonstrated:
 - RLS policies for customer ownership and tenant-scoped support-agent access
 - Explicit Data API grants for authenticated users
 - Repeatable positive and negative authorization tests using temporary local Auth users
+- A local-only DevTools RLS lab that creates and cleans up two isolated customer tenants
 - `support_cases` and `case_updates` enabled in the `supabase_realtime` publication
 - A minimal JavaScript Realtime status subscriber
 - A documented Realtime troubleshooting investigation covering publication, WAL, JWT, RLS, and subscription readiness
