@@ -204,6 +204,7 @@ async function main() {
 
     if (channel && subscriber) {
       await subscriber.removeChannel(channel)
+      await subscriber.realtime.disconnect()
     }
 
     if (caseId) {
