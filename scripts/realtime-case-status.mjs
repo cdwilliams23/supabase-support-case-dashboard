@@ -62,28 +62,50 @@ async function signIn(email) {
   return client
 }
 
-const wait = (milliseconds) =>
-  new Promise((resolve) => setTimeout(resolve, milliseconds))
-
-function waitForSubscription(activeChannel) {
+function waitForPostgresChangesReadiness(activeChannel) {
   return new Promise((resolve, reject) => {
+    let subscriptionReady = false
+    let postgresChangesReady = false
+
     const timeout = setTimeout(() => {
-      reject(new Error('Timed out waiting for Realtime subscription.'))
+      reject(
+        new Error(
+          'Timed out waiting for the Realtime subscription and Postgres Changes listener readiness.'
+        )
+      )
     }, 8000)
 
-    activeChannel.subscribe((status, error) => {
-      console.log(`Realtime subscription status: ${status}`)
+    const finishWhenReady = () => {
+      if (!subscriptionReady || !postgresChangesReady) return
 
-      if (status === 'SUBSCRIBED') {
-        clearTimeout(timeout)
-        resolve()
-      }
+      clearTimeout(timeout)
+      resolve()
+    }
 
-      if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        clearTimeout(timeout)
-        reject(error ?? new Error(`Realtime status: ${status}`))
-      }
-    })
+    activeChannel
+      .on('system', '*', (payload) => {
+        if (
+          payload.extension === 'postgres_changes' &&
+          payload.status === 'ok'
+        ) {
+          console.log('Postgres Changes listener status: ready')
+          postgresChangesReady = true
+          finishWhenReady()
+        }
+      })
+      .subscribe((status, error) => {
+        console.log(`Realtime subscription status: ${status}`)
+
+        if (status === 'SUBSCRIBED') {
+          subscriptionReady = true
+          finishWhenReady()
+        }
+
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+          clearTimeout(timeout)
+          reject(error ?? new Error(`Realtime status: ${status}`))
+        }
+      })
   })
 }
 
@@ -163,8 +185,7 @@ async function main() {
         }
       )
 
-    await waitForSubscription(channel)
-    await wait(3000)
+    await waitForPostgresChangesReadiness(channel)
 
     const { data: updatedCase, error: updateError } = await agentClient
       .from('support_cases')
