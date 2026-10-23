@@ -86,14 +86,11 @@ if (payload.new.id !== caseId) return
 
 The local investigation observed a timing gap: a channel can report `SUBSCRIBED` before the controlled write is reliably delivered to this local client.
 
-The controlled Realtime demo preserves its explicit three-second wait before its test update:
+The final demo waits for both the `SUBSCRIBED` channel state and the `system` message confirming that the `postgres_changes` extension reports `status: ok` before performing its controlled update.
 
-```js
-await waitForSubscription(channel)
-await wait(3000)
-```
+This replaces the earlier fixed three-second delay. The system message is recommended in Supabase’s Realtime troubleshooting guidance, although it is not yet a formally documented public API.
 
-That delay is a local-demo mitigation only. It is not a production dashboard-loading strategy.
+This readiness wait applies only to the controlled demo, where the script controls the writer. The dashboard still uses an authenticated, RLS-scoped PostgreSQL reconciliation query after subscription and after later Realtime events; that protects the UI from depending on perfect event delivery.
 
 The dashboard client uses the resilience pattern instead:
 
